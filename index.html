@@ -17,7 +17,7 @@ button.gray{background:#64748b}
 table{width:100%;border-collapse:collapse;background:white}
 th,td{border:1px solid #ddd;padding:8px;font-size:14px}
 th{background:#e5e7eb}
-.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
 .qrwrap{display:flex;gap:16px;flex-wrap:wrap}
 .qrbox{border:1px solid #ddd;border-radius:12px;padding:14px;text-align:center;background:#fff}
 .qrbox canvas{width:200px!important;height:200px!important}
@@ -60,14 +60,14 @@ th{background:#e5e7eb}
   }
 
   h2{
-    font-size:20px;
-    margin:0 0 6px 0;
-    line-height:1.15;
+    font-size:19px;
+    margin:0 0 5px 0;
+    line-height:1.1;
   }
 
   #summary{
-    font-size:14px;
-    margin:3px 0 6px 0;
+    font-size:13px;
+    margin:2px 0 5px 0;
   }
 
   table{
@@ -84,27 +84,29 @@ th{background:#e5e7eb}
 
   th,td{
     padding:0;
-    font-size:14px;
+    font-size:13px;
     text-align:center;
-    line-height:1.35;
-    height:21px;
+    line-height:1.25;
+    height:20px;
     vertical-align:middle;
   }
 
   .name{
-    font-size:14px;
+    font-size:13px;
     font-weight:bold;
     display:inline;
-    line-height:1.25;
+    line-height:1.2;
   }
 
   .clock{
-    font-size:14px;
+    font-size:13px;
     display:inline;
-    line-height:1.25;
-    margin-left:4px;
+    line-height:1.2;
+    margin-left:3px;
   }
 }
+
+
 </style>
 </head>
 <body>
@@ -117,32 +119,20 @@ th{background:#e5e7eb}
   <div class="card" id="checkin">
     <h3>手機打卡</h3>
 
-    <label>姓名</label>
-    <select id="guard">
-      <option>徐美鈴</option>
-      <option>黃秋媚</option>
-      <option>張凱閏</option>
-      <option>支援</option>
-    </select>
+    <label>密碼</label>
+    <input type="password" id="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="請輸入 4 碼密碼">
 
-    <label>巡邏點</label>
-    <select id="point">
-      <option>消防室</option>
-      <option>發電機室</option>
-    </select>
+    <div id="manualPointBox" style="display:none"></div>
 
-    <button onclick="checkIn()">立即打卡上傳</button>
+    <div id="qrPointBox" style="display:none;background:#eef2ff;border-radius:10px;padding:12px;margin:8px 0;font-size:18px;">
+      巡邏點：<b id="qrPointText"></b>
+    </div>
+
+    <button onclick="checkIn()">完成打卡</button>
+    <p id="qrHint" style="display:none;color:#2563eb;font-weight:bold;">已掃描巡邏點，請輸入密碼後按「完成打卡」。</p>
     <p id="msg"></p>
   </div>
-
-  <div class="card no-print">
-    <h3>巡邏點 QR Code</h3>
-    <p>列印後貼在現場。手機掃 QR 後會自動帶入巡邏點，再選姓名打卡。</p>
-    <button class="gray" onclick="window.print()">列印 QR Code / 報表</button>
-    <div class="qrwrap" id="qrs"></div>
-  </div>
-
-  <div class="card">
+<div class="card">
     <h3>月報表</h3>
     <div class="row no-print">
       <div>
@@ -162,10 +152,18 @@ th{background:#e5e7eb}
         <label>姓名</label>
         <select id="guardFilter">
           <option value="">全部人員</option>
-          <option>徐美鈴</option>
+          <option>胡美玲</option>
           <option>黃秋媚</option>
           <option>張凱閏</option>
           <option>支援</option>
+        </select>
+      </div>
+      <div>
+        <label>巡邏點</label>
+        <select id="pointFilter">
+          <option value="">全部巡邏點</option>
+          <option>消防室</option>
+          <option>發電機室</option>
         </select>
       </div>
     </div>
@@ -177,7 +175,7 @@ th{background:#e5e7eb}
     <p id="summary"></p>
     <table>
       <thead>
-        <tr><th>日期</th><th>時間</th><th>班別</th><th>姓名</th><th>巡邏點</th></tr>
+        <tr><th>日期</th><th>早班</th><th>中班</th><th>大夜班</th></tr>
       </thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -185,9 +183,10 @@ th{background:#e5e7eb}
 </main>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbzFheuZ1i-5pLadQaC63-ChmTTqM_2Rz1BhI0fL_6dvOcSmIMMaL_yg6iu34Nv42nBa/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwxDutIHpuhBshcVfQwsTNvRLp7SCPL63_xTwltVDexbvlVb7QdNwMRnplnEpa0ws4F/exec";
 const $ = id => document.getElementById(id);
 const POINTS = ["消防室","發電機室"];
+let lockedPoint = "";
 let reportData = [];
 
 function pad(n){ return String(n).padStart(2,"0"); }
@@ -198,9 +197,15 @@ window.onload = () => {
 
   const params = new URLSearchParams(location.search);
   const point = params.get("point");
-  if(point && POINTS.includes(point)) $("point").value = point;
+  if(point && POINTS.includes(point)) {
+    lockedPoint = point;
+    $("point").value = point;
+    $("manualPointBox").style.display = "none";
+    $("qrPointBox").style.display = "block";
+    $("qrPointText").textContent = point;
+    $("qrHint").style.display = "block";
+  }
 
-  makeQRCodes();
 };
 
 function getShift(date){
@@ -214,9 +219,42 @@ function localDateTime(d){
   return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+
+function guardFromPassword(password){
+  const map = {
+    "2351": "胡美玲",
+    "0324": "黃秋媚",
+    "2109": "張凱閏"
+  };
+  return map[String(password || "").trim()] || "";
+}
+
+function getShiftForGuard(date, guard){
+  const h = date.getHours();
+
+  if((guard === "胡美玲" || guard === "黃秋媚") && h >= 14 && h < 22){
+    return "中班";
+  }
+
+  if(h >= 7 && h < 15) return "早班";
+  if(h >= 15 && h < 23) return "中班";
+  return "大夜班";
+}
+
 async function checkIn(){
-  const guard = $("guard").value;
-  const point = $("point").value;
+  const password = $("password").value.trim();
+  const point = lockedPoint;
+
+  if(!point){
+    $("msg").innerHTML = '<span class="bad">請先掃描消防室或發電機室 QR Code 後再打卡</span>';
+    return;
+  }
+
+  if(!password){
+    $("msg").innerHTML = '<span class="bad">請輸入密碼</span>';
+    return;
+  }
+
   const now = new Date();
 
   const data = {
@@ -224,12 +262,11 @@ async function checkIn(){
     time: localDateTime(now),
     date: `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}`,
     clock: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
-    shift: getShift(now),
-    guard,
+    password,
     point
   };
 
-  $("msg").textContent = "上傳中...";
+  $("msg").textContent = "驗證並上傳中...";
   try {
     const r = await fetch(API_URL, {
       method:"POST",
@@ -239,7 +276,19 @@ async function checkIn(){
     });
     const j = await r.json();
     if(!j.ok) throw new Error(j.error || "上傳失敗");
-    $("msg").innerHTML = `<span class="ok">打卡成功：${data.time}｜${data.shift}｜${guard}｜${point}</span>`;
+
+    const displayGuard = j.guard || guardFromPassword(password);
+    const displayShift = j.shift || getShiftForGuard(now, displayGuard);
+    $("msg").innerHTML =
+      `<span class="ok">
+        ✅ 打卡成功<br>
+        姓名：${displayGuard}<br>
+        班別：${displayShift}<br>
+        巡邏點：${point}<br>
+        時間：${j.time || data.time}
+      </span>`;
+    $("password").value = "";
+    await loadReport();
   } catch(e) {
     $("msg").innerHTML = `<span class="bad">打卡失敗：${e.message}</span>`;
   }
@@ -249,6 +298,7 @@ async function loadReport(){
   const month = $("month").value;
   const shift = $("shift").value;
   const guard = $("guardFilter").value;
+  const point = $("pointFilter").value;
 
   $("summary").textContent = "讀取中...";
   try {
@@ -259,6 +309,7 @@ async function loadReport(){
 
     reportData = j.records || [];
     if(guard) reportData = reportData.filter(x => x.guard === guard);
+    if(point) reportData = reportData.filter(x => x.point === point);
     render();
   } catch(e) {
     $("summary").innerHTML = `<span class="bad">讀取失敗：${e.message}</span>`;
@@ -269,35 +320,70 @@ function render(){
   const month = $("month").value;
   const shift = $("shift").value || "全部班別";
   const guard = $("guardFilter").value || "全部人員";
+  const point = $("pointFilter").value || "全部巡邏點";
 
-  $("title").textContent = `巡邏月報表｜${month}｜${shift}｜${guard}`;
-  $("summary").textContent = `共 ${reportData.length} 筆`;
+  $("title").innerHTML = `松山工農地下停車場<br>巡邏月報表｜${month}｜${shift}｜${guard}｜${point}`;
 
-  $("tbody").innerHTML = reportData.map(x => `
-    <tr>
-      <td>${x.date || ""}</td>
-      <td>${x.clock || ""}</td>
-      <td>${x.shift || ""}</td>
-      <td>${x.guard || ""}</td>
-      <td>${x.point || ""}</td>
-    </tr>
-  `).join("");
-}
+  const [year, mon] = month.split("-").map(Number);
+  const daysInMonth = new Date(year, mon, 0).getDate();
 
-function makeQRCodes(){
-  const container = $("qrs");
-  container.innerHTML = "";
-  const base = location.href.split("?")[0].split("#")[0];
+  function timeValue(clock){
+    if(!clock) return -1;
+    const p = String(clock).split(":").map(Number);
+    return (p[0] || 0) * 3600 + (p[1] || 0) * 60 + (p[2] || 0);
+  }
 
-  POINTS.forEach(point => {
-    const url = `${base}?point=${encodeURIComponent(point)}`;
-    const box = document.createElement("div");
-    box.className = "qrbox";
-    box.innerHTML = `<h2>${point}</h2><canvas></canvas><p>掃描後自動帶入：${point}</p>`;
-    container.appendChild(box);
-    QRCode.toCanvas(box.querySelector("canvas"), url, {width:220, margin:2});
+  function setLatest(slot, x){
+    if(!slot.guard || timeValue(x.clock) >= timeValue(slot.clock)){
+      slot.guard = x.guard || "";
+      slot.clock = x.clock || "";
+    }
+  }
+
+  const grouped = {};
+  reportData.forEach(x => {
+    const dateText = (x.date || "").replace(/^\d{4}\//, "");
+    if(!grouped[dateText]){
+      grouped[dateText] = {
+        morning: { guard: "", clock: "" },
+        middle: { guard: "", clock: "" },
+        night: { guard: "", clock: "" }
+      };
+    }
+
+    if(x.shift === "早班") setLatest(grouped[dateText].morning, x);
+    if(x.shift === "中班") setLatest(grouped[dateText].middle, x);
+    if(x.shift === "大夜班") setLatest(grouped[dateText].night, x);
   });
+
+  function cellText(item){
+    if(!item || !item.guard) return "";
+    return `<span class="name">${item.guard}</span><span class="clock">${item.clock || ""}</span>`;
+  }
+
+  let rows = "";
+  for(let d = 1; d <= daysInMonth; d++){
+    const dateText = `${String(mon).padStart(2,"0")}/${String(d).padStart(2,"0")}`;
+    const g = grouped[dateText] || {
+      morning: { guard: "", clock: "" },
+      middle: { guard: "", clock: "" },
+      night: { guard: "", clock: "" }
+    };
+
+    rows += `
+      <tr>
+        <td>${dateText}</td>
+        <td>${cellText(g.morning)}</td>
+        <td>${cellText(g.middle)}</td>
+        <td>${cellText(g.night)}</td>
+      </tr>
+    `;
+  }
+
+  $("summary").textContent = `共 ${reportData.length} 筆打卡紀錄`;
+  $("tbody").innerHTML = rows;
 }
+
 </script>
 </body>
 </html>
