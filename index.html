@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>巡邏打卡系統</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+body{font-family:"Microsoft JhengHei",Arial,sans-serif;margin:0;background:#f4f6f8;color:#111}
+header{background:#1f2937;color:white;padding:16px}
+main{max-width:920px;margin:auto;padding:14px}
+.card{background:white;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #0001}
+select,button,input{font-size:18px;padding:12px;border-radius:10px;border:1px solid #bbb;width:100%;box-sizing:border-box;margin:6px 0}
+button{background:#2563eb;color:white;border:0;font-weight:bold}
+button.gray{background:#64748b}
+.ok{color:#15803d;font-weight:bold}.bad{color:#b91c1c;font-weight:bold}
+table{width:100%;border-collapse:collapse;background:white}
+th:nth-child(1),
+td:nth-child(1){
+    width:12%;
+}
+
+th:nth-child(2),
+td:nth-child(2){
+    width:29%;
+}
+
+th:nth-child(3),
+td:nth-child(3){
+    width:29%;
+}
+
+th:nth-child(4),
+td:nth-child(4){
+    width:30%;
+}
+th,td{border:1px solid #ddd;padding:8px;font-size:14px}
+th{background:#e5e7eb}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.qrwrap{display:flex;gap:16px;flex-wrap:wrap}
+.qrbox{border:1px solid #ddd;border-radius:12px;padding:14px;text-align:center;background:#fff}
+.qrbox canvas{width:200px!important;height:200px!important}
+@media(max-width:700px){.row{grid-template-columns:1fr}}
+@page{
+  size:A4 portrait;
+  margin:2mm;
+}
+
+@media print{
+  header,
+  #checkin,
+  .no-print,
+  button,
+  input,
+  select{
+    display:none!important;
+  }
+
+  body{
+    background:white;
+    margin:0;
+  }
+
+  main{
+    max-width:100%;
+    padding:0;
+  }
+
+  .card{
+    box-shadow:none;
+    border:none;
+    margin:0;
+    padding:0;
+  }
+
+  h3{
+    display:none;
+  }
+
+  h2{
+    font-size:16px;
+    margin:0 0 4px 0;
+    line-height:1.1;
+  }
+
+  #summary{
+    font-size:11px;
+    margin:2px 0 4px 0;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+  }
+
+  th,td{
+    padding:0;
+    font-size:13px;
+    text-align:center;
+    line-height:1;
+    height:12px;
+    vertical-align:middle;
+  }
+
+  .name{
+    font-size:13px;
+    font-weight:bold;
+    display:inline;
+    line-height:1;
+  }
+
+  .clock{
+    font-size:13px;
+    display:inline;
+    line-height:1;
+    margin-left:2px;
+  }
+}
+
+.name{
+  font-size:12px;
+  font-weight:bold;
+  display:inline;
+  line-height:1;
+}
+
+.clock{
+  font-size:12px;
+  display:inline;
+  line-height:1;
+  margin-left:2px;
+}
+</style>
+</head>
+<body>
+<header>
+  <h2>巡邏打卡系統</h2>
+  <div>自動上傳 Google 試算表｜消防室 / 發電機室｜月報表列印</div>
+</header>
+
+<main>
+  <div class="card" id="checkin">
+    <h3>手機打卡</h3>
+    <label>密碼</label>
+    <input type="password" id="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="請輸入 4 碼密碼">
+
+    <div id="manualPointBox" style="display:none"></div>
+
+    <div id="qrPointBox" style="display:none;background:#eef2ff;border-radius:10px;padding:12px;margin:8px 0;font-size:18px;">
+      巡邏點：<b id="qrPointText"></b>
+    </div>
+
+    <button onclick="checkIn()">完成打卡</button>
+    <p id="qrHint" style="display:none;color:#2563eb;font-weight:bold;">已掃描巡邏點，請輸入密碼後按「完成打卡」。</p>
+    <p id="msg"></p>
+  </div>
+<div class="card">
+    <h3>月報表</h3>
+    <div class="row no-print">
+      <div>
+        <label>月份</label>
+        <input type="month" id="month">
+      </div>
+      <div>
+        <label>班別</label>
+        <select id="shift">
+          <option value="">全部班別</option>
+          <option value="早班">早班 07:00~15:00</option>
+          <option value="中班">中班 15:00~23:00</option>
+          <option value="大夜班">大夜班 23:00~07:00</option>
+        </select>
+      </div>
+      <div>
+        <label>姓名</label>
+        <select id="guardFilter">
+          <option value="">全部人員</option>
+          <option>胡美玲</option>
+          <option>黃秋媚</option>
+          <option>張凱閏</option>
+          <option>支援</option>
+        </select>
+      </div>
+      <div>
+        <label>巡邏點</label>
+        <select id="pointFilter">
+          <option value="">全部巡邏點</option>
+          <option>消防室</option>
+          <option>發電機室</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="no-print" onclick="loadReport()">查詢月報表</button>
+    <button class="gray no-print" onclick="window.print()">列印月報表</button>
+
+    <h2 id="title">巡邏月報表</h2>
+    <p id="summary"></p>
+    <table>
+      <thead>
+        <tr><th>日期</th><th>早班</th><th>中班</th><th>大夜班</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbwxDutIHpuhBshcVfQwsTNvRLp7SCPL63_xTwltVDexbvlVb7QdNwMRnplnEpa0ws4F/exec";
+const $ = id => document.getElementById(id);
+const POINTS = ["消防室","發電機室"];
+let lockedPoint = "";
+let reportData = [];
+
+function pad(n){ return String(n).padStart(2,"0"); }
+
+window.onload = () => {
+  const now = new Date();
+  $("month").value = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+
+  const params = new URLSearchParams(location.search);
+  const point = params.get("point");
+  if(point && POINTS.includes(point)) {
+    lockedPoint = point;
+    $("manualPointBox").style.display = "none";
+    $("qrPointBox").style.display = "block";
+    $("qrPointText").textContent = point;
+    $("qrHint").style.display = "block";
+  }
+
+};
+
+function getShift(date){
+  const h = date.getHours();
+  if(h >= 7 && h < 15) return "早班";
+  if(h >= 15 && h < 23) return "中班";
+  return "大夜班";
+}
+
+function localDateTime(d){
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+
+function guardFromPassword(password){
+  const map = {
+    "2351": "胡美玲",
+    "0324": "黃秋媚",
+    "2109": "張凱閏"
+  };
+  return map[String(password || "").trim()] || "";
+}
+
+function getShiftForGuard(date, guard){
+  const h = date.getHours();
+
+  if((guard === "胡美玲" || guard === "黃秋媚") && h >= 14 && h < 22){
+    return "中班";
+  }
+
+  if(h >= 7 && h < 15) return "早班";
+  if(h >= 15 && h < 23) return "中班";
+  return "大夜班";
+}
+
+async function checkIn(){
+  const password = $("password").value.trim();
+  const point = lockedPoint;
+
+  if(!point){
+    $("msg").innerHTML = '<span class="bad">請先掃描消防室或發電機室 QR Code 後再打卡</span>';
+    return;
+  }
+
+  if(!password){
+    $("msg").innerHTML = '<span class="bad">請輸入密碼</span>';
+    return;
+  }
+
+  const now = new Date();
+
+  const data = {
+    isoTime: now.toISOString(),
+    time: localDateTime(now),
+    date: `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}`,
+    clock: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
+    password,
+    point
+  };
+
+  $("msg").textContent = "驗證並上傳中...";
+  try {
+    const r = await fetch(API_URL, {
+      method:"POST",
+      mode:"cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify(data)
+    });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || "上傳失敗");
+
+    const displayGuard = j.guard || guardFromPassword(password);
+    const displayShift = j.shift || getShiftForGuard(now, displayGuard);
+
+    $("msg").innerHTML =
+      `<span class="ok">
+        ✅ 打卡成功<br>
+        姓名：${displayGuard}<br>
+        班別：${displayShift}<br>
+        巡邏點：${point}<br>
+        時間：${j.time || data.time}
+      </span>`;
+
+    $("password").value = "";
+    await loadReport();
+  } catch(e) {
+    $("msg").innerHTML = `<span class="bad">打卡失敗：${e.message}</span>`;
+  }
+}
+
+async function loadReport(){
+  const month = $("month").value;
+  const shift = $("shift").value;
+  const guard = $("guardFilter").value;
+  const point = $("pointFilter").value;
+
+  $("summary").textContent = "讀取中...";
+  try {
+    const url = `${API_URL}?action=list&month=${encodeURIComponent(month)}&shift=${encodeURIComponent(shift)}`;
+    const r = await fetch(url);
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || "讀取失敗");
+
+    reportData = j.records || [];
+    if(guard) reportData = reportData.filter(x => x.guard === guard);
+    if(point) reportData = reportData.filter(x => x.point === point);
+    render();
+  } catch(e) {
+    $("summary").innerHTML = `<span class="bad">讀取失敗：${e.message}</span>`;
+  }
+}
+
+function render(){
+  const month = $("month").value;
+  const shift = $("shift").value || "全部班別";
+  const guard = $("guardFilter").value || "全部人員";
+  const point = $("pointFilter").value || "全部巡邏點";
+
+  $("title").innerHTML = `松山工農地下停車場<br>巡邏月報表｜${month}｜${shift}｜${guard}｜${point}`;
+
+  const [year, mon] = month.split("-").map(Number);
+  const daysInMonth = new Date(year, mon, 0).getDate();
+
+  function timeValue(clock){
+    if(!clock) return -1;
+    const p = String(clock).split(":").map(Number);
+    return (p[0] || 0) * 3600 + (p[1] || 0) * 60 + (p[2] || 0);
+  }
+
+  function setLatest(slot, x){
+    if(!slot.guard || timeValue(x.clock) >= timeValue(slot.clock)){
+      slot.guard = x.guard || "";
+      slot.clock = x.clock || "";
+    }
+  }
+
+  const grouped = {};
+  reportData.forEach(x => {
+    const dateText = (x.date || "").replace(/^\d{4}\//, "");
+    if(!grouped[dateText]){
+      grouped[dateText] = {
+        morning: { guard: "", clock: "" },
+        middle: { guard: "", clock: "" },
+        night: { guard: "", clock: "" }
+      };
+    }
+
+    if(x.shift === "早班") setLatest(grouped[dateText].morning, x);
+    if(x.shift === "中班") setLatest(grouped[dateText].middle, x);
+    if(x.shift === "大夜班") setLatest(grouped[dateText].night, x);
+  });
+
+  function cellText(item){
+    if(!item || !item.guard) return "";
+    return `<span class="name">${item.guard}</span><span class="clock">${item.clock || ""}</span>`;
+  }
+
+  let rows = "";
+  for(let d = 1; d <= daysInMonth; d++){
+    const dateText = `${String(mon).padStart(2,"0")}/${String(d).padStart(2,"0")}`;
+    const g = grouped[dateText] || {
+      morning: { guard: "", clock: "" },
+      middle: { guard: "", clock: "" },
+      night: { guard: "", clock: "" }
+    };
+
+    rows += `
+      <tr>
+        <td>${dateText}</td>
+        <td>${cellText(g.morning)}</td>
+        <td>${cellText(g.middle)}</td>
+        <td>${cellText(g.night)}</td>
+      </tr>
+    `;
+  }
+
+  $("summary").textContent = `共 ${reportData.length} 筆打卡紀錄`;
+  $("tbody").innerHTML = rows;
+}
+
+</script>
+</body>
+</html>
