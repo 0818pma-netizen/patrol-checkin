@@ -37,75 +37,78 @@ th{background:#e5e7eb}
     display:none!important;
   }
 
-  body{
-    background:white;
-    margin:0;
+  html,body{
+    background:white!important;
+    margin:0!important;
+    padding:0!important;
+    width:100%!important;
   }
 
   main{
-    max-width:none;
-    width:100%;
-    padding:0;
+    max-width:none!important;
+    width:100%!important;
+    padding:0!important;
+    margin:0!important;
   }
 
   .card{
-    box-shadow:none;
-    border:none;
-    margin:0;
-    padding:0;
+    box-shadow:none!important;
+    border:none!important;
+    margin:0!important;
+    padding:0!important;
+    width:100%!important;
   }
 
   h3{
-    display:none;
+    display:none!important;
   }
 
   h2{
-    font-size:19px;
-    margin:0 0 5px 0;
-    line-height:1.1;
+    font-size:19px!important;
+    margin:0 0 5px 0!important;
+    line-height:1.1!important;
   }
 
   #summary{
-    font-size:13px;
-    margin:2px 0 5px 0;
+    font-size:13px!important;
+    margin:2px 0 5px 0!important;
   }
 
   table{
-    width:100%;
-    min-width:100%;
-    border-collapse:collapse;
-    table-layout:fixed;
+    width:100%!important;
+    min-width:100%!important;
+    border-collapse:collapse!important;
+    table-layout:fixed!important;
   }
 
-  th:nth-child(1),td:nth-child(1){width:12%}
-  th:nth-child(2),td:nth-child(2){width:34%}
-  th:nth-child(3),td:nth-child(3){width:27%}
-  th:nth-child(4),td:nth-child(4){width:27%}
+  th:nth-child(1),td:nth-child(1){width:12%!important}
+  th:nth-child(2),td:nth-child(2){width:34%!important}
+  th:nth-child(3),td:nth-child(3){width:27%!important}
+  th:nth-child(4),td:nth-child(4){width:27%!important}
 
   th,td{
-    padding:0;
-    font-size:13px;
-    text-align:center;
-    line-height:1.25;
-    height:20px;
-    vertical-align:middle;
+    padding:0!important;
+    font-size:13px!important;
+    text-align:center!important;
+    line-height:1.25!important;
+    height:20px!important;
+    vertical-align:middle!important;
   }
 
   .name{
-    font-size:13px;
-    font-weight:bold;
-    display:inline;
-    line-height:1.2;
+    font-size:13px!important;
+    font-weight:bold!important;
+    display:inline!important;
+    line-height:1.2!important;
   }
 
   .clock{
-    font-size:13px;
-    display:inline;
-    line-height:1.2;
-    margin-left:3px;
+    font-size:13px!important;
+    display:inline!important;
+    line-height:1.2!important;
+    margin-left:3px!important;
   }
 }
-
 
 </style>
 </head>
@@ -385,5 +388,111 @@ function render(){
 }
 
 </script>
+
+<script>
+(function(){
+  let originalStyles = "";
+
+  function applyPrintLayout(){
+    const table = document.querySelector("table");
+    const main = document.querySelector("main");
+    const cards = document.querySelectorAll(".card");
+    const title = document.getElementById("title");
+    const summary = document.getElementById("summary");
+
+    if(!document.getElementById("printForceStyle")){
+      const style = document.createElement("style");
+      style.id = "printForceStyle";
+      style.textContent = `
+        @page{size:A4 portrait;margin:2mm}
+        @media print{
+          header,#checkin,.no-print,button,input,select{display:none!important}
+          html,body{background:white!important;margin:0!important;padding:0!important;width:100%!important}
+          main{max-width:none!important;width:100%!important;margin:0!important;padding:0!important}
+          .card{box-shadow:none!important;border:none!important;margin:0!important;padding:0!important;width:100%!important}
+          h3{display:none!important}
+          #title{font-size:19px!important;margin:0 0 5px 0!important;line-height:1.1!important}
+          #summary{font-size:13px!important;margin:2px 0 5px 0!important}
+          table{width:100%!important;min-width:100%!important;border-collapse:collapse!important;table-layout:fixed!important}
+          th:nth-child(1),td:nth-child(1){width:12%!important}
+          th:nth-child(2),td:nth-child(2){width:34%!important}
+          th:nth-child(3),td:nth-child(3){width:27%!important}
+          th:nth-child(4),td:nth-child(4){width:27%!important}
+          th,td{padding:0!important;font-size:13px!important;text-align:center!important;line-height:1.25!important;height:20px!important;vertical-align:middle!important}
+          .name{font-size:13px!important;font-weight:bold!important;display:inline!important;line-height:1.2!important}
+          .clock{font-size:13px!important;display:inline!important;line-height:1.2!important;margin-left:3px!important}
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    if(main){
+      main.style.maxWidth = "none";
+      main.style.width = "100%";
+      main.style.padding = "0";
+      main.style.margin = "0";
+    }
+
+    cards.forEach(card => {
+      card.style.boxShadow = "none";
+      card.style.border = "0";
+      card.style.margin = "0";
+      card.style.padding = "0";
+      card.style.width = "100%";
+    });
+
+    if(title){
+      title.style.fontSize = "19px";
+      title.style.margin = "0 0 5px 0";
+      title.style.lineHeight = "1.1";
+    }
+
+    if(summary){
+      summary.style.fontSize = "13px";
+      summary.style.margin = "2px 0 5px 0";
+    }
+
+    if(table){
+      table.style.width = "100%";
+      table.style.minWidth = "100%";
+      table.style.tableLayout = "fixed";
+      table.style.borderCollapse = "collapse";
+
+      const rows = table.querySelectorAll("tr");
+      rows.forEach(row => {
+        Array.from(row.children).forEach((cell, idx) => {
+          cell.style.padding = "0";
+          cell.style.fontSize = "13px";
+          cell.style.lineHeight = "1.25";
+          cell.style.height = "20px";
+          cell.style.textAlign = "center";
+          cell.style.verticalAlign = "middle";
+          if(idx === 0) cell.style.width = "12%";
+          if(idx === 1) cell.style.width = "34%";
+          if(idx === 2) cell.style.width = "27%";
+          if(idx === 3) cell.style.width = "27%";
+        });
+      });
+
+      table.querySelectorAll(".name").forEach(el => {
+        el.style.fontSize = "13px";
+        el.style.fontWeight = "bold";
+        el.style.display = "inline";
+        el.style.lineHeight = "1.2";
+      });
+
+      table.querySelectorAll(".clock").forEach(el => {
+        el.style.fontSize = "13px";
+        el.style.display = "inline";
+        el.style.lineHeight = "1.2";
+        el.style.marginLeft = "3px";
+      });
+    }
+  }
+
+  window.addEventListener("beforeprint", applyPrintLayout);
+})();
+</script>
+
 </body>
 </html>
